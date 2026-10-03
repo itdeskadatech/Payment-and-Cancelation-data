@@ -117,6 +117,7 @@ td.n,th.n{text-align:right}
 </main>
 
 <script>
+window.addEventListener('error',e=>{const m=document.getElementById('msg');m.style.display='block';m.textContent='Script error: '+e.message;});
 /* ================= CONFIG ================= */
 // Published Google Sheet CSV (File > Share > Publish to web > CSV). Updates automatically when the sheet changes.
 const DATA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRYnkg1MNHqYytTUbjUDCquQ4ezGC-Fg7sDotwt1tG0xxkHEgQi9uLBm6TlmIIuzn1fvr2K3UGgzF-g/pub?output=csv';
@@ -203,7 +204,7 @@ function group(rows, key){
     g.adm++; g.pen += r._pen; g.sem += r._sem; g.ann += r._ann; if(r._can) g.can++; });
   return [...m.values()].sort((a,b) => b.adm - a.adm || a.name.localeCompare(b.name));
 }
-const top = (arr, f, n=10) => [...arr].sort((a,b) => f(b)-f(a)).slice(0,n);
+const topN = (arr, f, n=10) => [...arr].sort((a,b) => f(b)-f(a)).slice(0,n);
 
 /* ---------- rendering helpers ---------- */
 function table(el, headers, rows, numFrom=1){
@@ -256,7 +257,7 @@ function render(){
   // counsellor
   const gcn = groupTable('t-counsellor', rows, C.cn, 'Counsellor Name');
   [['c-cn-adm','adm','Admissions'],['c-cn-pen','pen','Fees Pending'],['c-cn-sem','sem','Semester Fees Paid'],['c-cn-ann','ann','Annual Fees Paid']].forEach(([id,k,l]) => {
-    const t = top(gcn, x=>x[k]); chart(id,'barh',t.map(x=>x.name),[{label:l,data:t.map(x=>x[k])}]); });
+    const t = topN(gcn, x=>x[k]); chart(id,'barh',t.map(x=>x.name),[{label:l,data:t.map(x=>x[k])}]); });
 
   // manager
   const gmg = groupTable('t-manager', rows, C.mg, 'Manager');
