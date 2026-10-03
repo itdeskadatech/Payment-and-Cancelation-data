@@ -137,6 +137,8 @@ const $ = id => document.getElementById(id);
 
 let ALL = [], charts = {};
 
+const isYN = v => /^\s*(yes|no|y|n)\s*$/i.test(String(v ?? ''));
+function fee(v){ if(isYN(v)) return /^\s*y/i.test(String(v)) ? 1 : 0; return num(v); }
 function num(v){ const x = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g,'')); return isNaN(x) ? 0 : x; }
 function parseDate(s){
   s = String(s||'').trim(); if(!s) return null;
@@ -154,7 +156,7 @@ function ingest(text){
   const res = Papa.parse(text, {header:true, skipEmptyLines:true, transformHeader:h=>h.trim()});
   const rows = res.data.map(r => { const o = {}; Object.keys(r).forEach(k => o[k] = (r[k] ?? '').toString().trim()); return o; })
     .filter(r => r[C.name]);
-  rows.forEach(r => { r._d = parseDate(r[C.date]); r._pen = num(r[C.pen]); r._sem = num(r[C.sem]); r._ann = num(r[C.ann]); r._can = isCancelled(r); });
+  rows.forEach(r => { r._d = parseDate(r[C.date]); r._pen = fee(r[C.pen]); r._sem = fee(r[C.sem]); r._ann = fee(r[C.ann]); r._can = isCancelled(r); });
   ALL = rows; buildFilters(); render();
 }
 async function load(){
@@ -232,13 +234,15 @@ function chart(id, type, labels, datasets, opt={}){
 }
 
 /* ---------- main render ---------- */
+const cellVal = (r,c) => { const k = c===C.pen?'_pen':c===C.sem?'_sem':c===C.ann?'_ann':null; if(!k) return r[c]; return isYN(r[c]) ? r[c].trim() : r[k]; };
 function render(){
   const rows = filtered();
   const tot = rows.length, can = rows.filter(r=>r._can).length;
   const sum = k => rows.reduce((a,r)=>a+r[k],0);
-  $('kpis').innerHTML = [['Total Admissions',tot],['Total Fees Pending',sum('_pen')],['Total Semester Fees Paid',sum('_sem')],
-    ['Total Annual Fees Paid',sum('_ann')],['Cancelled Admissions',can],['Active Admissions',tot-can]]
-    .map(([l,v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${fmt(v)}</div></div>`).join('');
+  const yn = c => ALL.some(r => isYN(r[c])) ? '<div style="font-size:10px;color:#78909C">(count of “Yes”)</div>' : '';
+  $('kpis').innerHTML = [['Total Admissions',tot,''],['Total Fees Pending',sum('_pen'),yn(C.pen)],['Total Semester Fees Paid',sum('_sem'),yn(C.sem)],
+    ['Total Annual Fees Paid',sum('_ann'),yn(C.ann)],['Cancelled Admissions',can,''],['Active Admissions',tot-can,'']]
+    .map(([l,v,n]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${fmt(v)}</div>${n}</div>`).join('');
 
   // date / month
   const dm = new Map(), mm = new Map();
@@ -278,14 +282,14 @@ function render(){
 
   // recent
   const rec = rows.filter(r=>r._d).sort((a,b)=>b._d-a._d).slice(0,20);
-  table('t-recent', RECENT_COLS, rec.map(r => RECENT_COLS.map(c => (c===C.pen?r._pen:c===C.sem?r._sem:c===C.ann?r._ann:r[c]))), 9);
+  table('t-recent', RECENT_COLS, rec.map(r => RECENT_COLS.map(c => cellVal(r,c))), 9);
   // cancelled
   const cr = rows.filter(r=>r._can);
   [['t-can-cn',C.cn,'Counsellor Name'],['t-can-mg',C.mg,'Manager'],['t-can-tl',C.tl,'Team Leader'],['t-can-cp',C.campus,'Campus'],['t-can-co',C.course,'Course Selected']]
     .forEach(([el,key,lab]) => { const g = group(cr,key); table(el,[lab,'Cancelled Admissions'],g.map(x=>[x.name,x.adm])); });
   // pending
   const pr = rows.filter(r=>r._pen>0).sort((a,b)=>b._pen-a._pen);
-  table('t-pending', RECENT_COLS, pr.map(r => RECENT_COLS.map(c => (c===C.pen?r._pen:c===C.sem?r._sem:c===C.ann?r._ann:r[c]))), 9);
+  table('t-pending', RECENT_COLS, pr.map(r => RECENT_COLS.map(c => cellVal(r,c))), 9);
 }
 
 load();
