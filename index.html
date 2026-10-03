@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admissions Dashboard | Higher.Study</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root{--o:#F57C00;--o2:#FFA726;--ol:#FFF3E0;--d:#37474F;--g:#ECEFF1;--g2:#CFD8DC;--w:#fff}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:#F5F6F7;color:var(--d);font-size:13px}
+header{background:var(--o);color:#fff;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+header h1{margin:0;font-size:21px}
+header .meta{font-size:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header button,header label.btn{background:#fff;color:var(--o);border:0;border-radius:6px;padding:6px 12px;font-weight:700;cursor:pointer;font-size:12px}
+.dot{width:9px;height:9px;border-radius:50%;background:#9E9E9E;display:inline-block}
+.dot.ok{background:#66BB6A}.dot.err{background:#E53935}
+#filters{position:sticky;top:0;z-index:20;background:#fff;border-bottom:2px solid var(--o);padding:10px 22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+#filters label{font-size:11px;font-weight:700;color:#78909C;display:block;margin-bottom:2px}
+#filters select,#filters input{width:100%;padding:6px;border:1px solid var(--g2);border-radius:6px;font-size:12px;background:#fff}
+#filters .reset{align-self:end}
+#filters .reset button{width:100%;padding:7px;border:1px solid var(--o);background:var(--ol);color:var(--o);font-weight:700;border-radius:6px;cursor:pointer}
+main{padding:16px 22px;max-width:1500px;margin:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:8px}
+.kpi{background:var(--ol);border:2px solid var(--o);border-radius:10px;padding:12px 14px;text-align:center}
+.kpi .l{font-weight:700;font-size:12px}.kpi .v{font-size:28px;font-weight:800;color:var(--o);margin-top:4px}
+h2{background:var(--o);color:#fff;margin:22px 0 10px;padding:7px 12px;font-size:15px;border-radius:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px}
+.card{background:#fff;border:1px solid var(--g2);border-radius:10px;padding:10px}
+.card h3{margin:0 0 6px;font-size:13px;color:var(--d)}
+.box{position:relative;height:290px}
+.tw{max-height:360px;overflow:auto;border:1px solid var(--g2);border-radius:8px;background:#fff}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th{position:sticky;top:0;background:var(--d);color:#fff;text-align:left;padding:6px 8px;white-space:nowrap}
+td{padding:5px 8px;border-bottom:1px solid var(--g);white-space:nowrap}
+tr:nth-child(even) td{background:#FAFAFA}
+td.n,th.n{text-align:right}
+.sub{font-size:11px;color:#78909C;margin:-4px 0 8px}
+#msg{background:#FFEBEE;color:#B71C1C;padding:10px 22px;display:none;font-weight:600}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>ADMISSIONS DASHBOARD <span style="font-weight:400;font-size:14px">| Higher.Study</span></h1>
+  <div class="meta">
+    <span><span id="dot" class="dot"></span> <span id="status">Loading…</span></span>
+    <button id="refresh">⟳ Refresh now</button>
+    <label class="btn">Load CSV file<input id="file" type="file" accept=".csv" hidden></label>
+  </div>
+</header>
+<div id="msg"></div>
+<div id="filters"></div>
+<main>
+  <div class="kpis" id="kpis"></div>
+
+  <h2>Admission Analysis</h2>
+  <div class="grid">
+    <div class="card"><h3>Admissions by Date (latest 60 dates)</h3><div class="box"><canvas id="c-date"></canvas></div></div>
+    <div class="card"><h3>Admissions by Month</h3><div class="box"><canvas id="c-month"></canvas></div></div>
+    <div class="card"><h3>Admissions by Process</h3><div class="box"><canvas id="c-proc"></canvas></div></div>
+    <div class="card"><h3>Admissions by Campus (top 10)</h3><div class="box"><canvas id="c-campus"></canvas></div></div>
+    <div class="card"><h3>Admissions by Course Selected (top 10)</h3><div class="box"><canvas id="c-course"></canvas></div></div>
+    <div class="card"><h3>Admissions by Current Status</h3><div class="box"><canvas id="c-status"></canvas></div></div>
+  </div>
+
+  <h2>Counsellor Analysis</h2>
+  <div class="grid">
+    <div class="card"><h3>Admissions by Counsellor (top 10)</h3><div class="box"><canvas id="c-cn-adm"></canvas></div></div>
+    <div class="card"><h3>Fees Pending by Counsellor (top 10)</h3><div class="box"><canvas id="c-cn-pen"></canvas></div></div>
+    <div class="card"><h3>Semester Fees Paid by Counsellor (top 10)</h3><div class="box"><canvas id="c-cn-sem"></canvas></div></div>
+    <div class="card"><h3>Annual Fees Paid by Counsellor (top 10)</h3><div class="box"><canvas id="c-cn-ann"></canvas></div></div>
+  </div>
+  <div class="tw" style="margin-top:12px" id="t-counsellor"></div>
+
+  <h2>Manager Analysis</h2>
+  <div class="grid">
+    <div class="card"><h3>Admissions by Manager</h3><div class="box"><canvas id="c-mg-adm"></canvas></div></div>
+    <div class="card"><h3>Fees by Manager (Pending / Semester / Annual)</h3><div class="box"><canvas id="c-mg-fee"></canvas></div></div>
+  </div>
+  <div class="tw" style="margin-top:12px" id="t-manager"></div>
+
+  <h2>Team Leader Analysis</h2>
+  <div class="grid"><div class="card"><h3>Admissions by Team Leader</h3><div class="box"><canvas id="c-tl"></canvas></div></div></div>
+  <div class="tw" style="margin-top:12px" id="t-tl"></div>
+
+  <h2>Campus Analysis</h2>
+  <div class="tw" id="t-campus"></div>
+
+  <h2>Course Analysis</h2>
+  <div class="tw" id="t-course"></div>
+
+  <h2>Status Analysis</h2>
+  <div class="tw" id="t-status"></div>
+
+  <h2>Fees Analysis</h2>
+  <div class="grid">
+    <div class="card"><h3>Fees Pending vs Semester Paid vs Annual Paid</h3><div class="box"><canvas id="c-fee-col"></canvas></div></div>
+    <div class="card"><h3>Fees Split</h3><div class="box"><canvas id="c-fee-pie"></canvas></div></div>
+  </div>
+
+  <h2>Recent Admissions (latest 20)</h2>
+  <div class="tw" id="t-recent"></div>
+
+  <h2>Cancelled Analysis <span style="font-weight:400;font-size:12px">(Current Status contains “cancel”)</span></h2>
+  <div class="two">
+    <div><div class="sub">By Counsellor Name</div><div class="tw" id="t-can-cn"></div></div>
+    <div><div class="sub">By Manager</div><div class="tw" id="t-can-mg"></div></div>
+    <div><div class="sub">By Team Leader</div><div class="tw" id="t-can-tl"></div></div>
+    <div><div class="sub">By Campus</div><div class="tw" id="t-can-cp"></div></div>
+    <div><div class="sub">By Course Selected</div><div class="tw" id="t-can-co"></div></div>
+  </div>
+
+  <h2>Pending Fees <span style="font-weight:400;font-size:12px">(Fees Pending &gt; 0)</span></h2>
+  <div class="tw" id="t-pending"></div>
+</main>
+
+<script>
+/* ================= CONFIG ================= */
+// Published Google Sheet CSV (File > Share > Publish to web > CSV). Updates automatically when the sheet changes.
+const DATA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRYnkg1MNHqYytTUbjUDCquQ4ezGC-Fg7sDotwt1tG0xxkHEgQi9uLBm6TlmIIuzn1fvr2K3UGgzF-g/pub?output=csv';
+const REFRESH_SEC = 60;            // auto-refresh interval
+/* ========================================== */
+
+const C = { proc:'Process', date:'Admission Done date', app:'Application Number', name:'Candidate Name', campus:'Campus',
+  course:'Course Selected', cn:'Counsellor Name', mg:'Manager', tl:'Team Leader', st:'Current Status',
+  pen:'Fees Pending', sem:'Semester Fees Paid', ann:'Annual Fees Paid', rem:'Remark' };
+const RECENT_COLS = [C.date,C.app,C.name,C.campus,C.course,C.cn,C.mg,C.tl,C.st,C.pen,C.sem,C.ann,C.rem];
+const FILTERS = [['Process',C.proc],['Campus',C.campus],['Course Selected',C.course],['Counsellor Name',C.cn],['Manager',C.mg],['Team Leader',C.tl],['Current Status',C.st]];
+const PAL = ['#F57C00','#FFA726','#FFCC80','#90A4AE','#607D8B','#37474F','#FB8C00','#BDBDBD','#FFE0B2','#78909C'];
+const MON = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+const fmt = n => Math.round(n).toLocaleString('en-IN');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $ = id => document.getElementById(id);
+
+let ALL = [], charts = {};
+
+function num(v){ const x = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g,'')); return isNaN(x) ? 0 : x; }
+function parseDate(s){
+  s = String(s||'').trim(); if(!s) return null;
+  let m = s.match(/^(\d{1,2})[-\/ ]([A-Za-z]{3})[a-z]*[-\/ ,]+(\d{4})$/);
+  if(m){ const mo = MON[m[2].toLowerCase()]; if(mo!==undefined) return new Date(+m[3],mo,+m[1]); }
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+  m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/); if(m) return new Date(+m[3],+m[2]-1,+m[1]);   // dd/mm/yyyy
+  const d = new Date(s); return isNaN(d) ? null : d;
+}
+const ymd = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const isCancelled = r => /cancel/i.test(r[C.st]);
+
+/* ---------- load ---------- */
+function ingest(text){
+  const res = Papa.parse(text, {header:true, skipEmptyLines:true, transformHeader:h=>h.trim()});
+  const rows = res.data.map(r => { const o = {}; Object.keys(r).forEach(k => o[k] = (r[k] ?? '').toString().trim()); return o; })
+    .filter(r => r[C.name]);
+  rows.forEach(r => { r._d = parseDate(r[C.date]); r._pen = num(r[C.pen]); r._sem = num(r[C.sem]); r._ann = num(r[C.ann]); r._can = isCancelled(r); });
+  ALL = rows; buildFilters(); render();
+}
+async function load(){
+  try{
+    $('status').textContent = 'Refreshing…';
+    const r = await fetch(DATA_URL + (DATA_URL.includes('?')?'&':'?') + 't=' + Date.now(), {cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    ingest(await r.text());
+    $('dot').className = 'dot ok'; $('msg').style.display = 'none';
+    $('status').textContent = 'Live • updated ' + new Date().toLocaleTimeString() + ' • ' + fmt(ALL.length) + ' records';
+  }catch(e){
+    $('dot').className = 'dot err'; $('status').textContent = 'Load failed';
+    $('msg').style.display = 'block';
+    $('msg').textContent = 'Could not load live data (' + e.message + '). Check the published CSV link / internet, or use "Load CSV file".';
+  }
+}
+$('refresh').onclick = load;
+$('file').onchange = e => { const f = e.target.files[0]; if(!f) return; f.text().then(t => { ingest(t); $('dot').className='dot'; $('status').textContent = 'Loaded from file • ' + fmt(ALL.length) + ' records (auto-refresh paused)'; clearInterval(timer); }); };
+
+/* ---------- filters ---------- */
+function buildFilters(){
+  const box = $('filters'), keep = {};
+  box.querySelectorAll('select,input').forEach(el => keep[el.id] = el.value);
+  let h = `<div><label>Admission Date From</label><input type="date" id="f-from"></div><div><label>Admission Date To</label><input type="date" id="f-to"></div>`;
+  FILTERS.forEach(([lab,key],i) => {
+    const vals = [...new Set(ALL.map(r => r[key]).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    h += `<div><label>${lab}</label><select id="f-${i}"><option value="">All</option>${vals.map(v=>`<option>${esc(v)}</option>`).join('')}</select></div>`;
+  });
+  h += `<div class="reset"><button id="f-reset">Reset filters</button></div>`;
+  box.innerHTML = h;
+  box.querySelectorAll('select,input').forEach(el => { if(keep[el.id] !== undefined) el.value = keep[el.id]; el.onchange = render; });
+  $('f-reset').onclick = () => { box.querySelectorAll('select,input').forEach(el => el.value=''); render(); };
+}
+function filtered(){
+  const from = $('f-from').value, to = $('f-to').value;
+  const sel = FILTERS.map(([_,key],i) => [key, $('f-'+i).value]).filter(x => x[1]);
+  return ALL.filter(r => {
+    if(from || to){ if(!r._d) return false; const s = ymd(r._d); if(from && s < from) return false; if(to && s > to) return false; }
+    return sel.every(([k,v]) => r[k] === v);
+  });
+}
+
+/* ---------- aggregation ---------- */
+function group(rows, key){
+  const m = new Map();
+  rows.forEach(r => { const k = r[key] || '(blank)'; let g = m.get(k); if(!g){ g = {name:k,adm:0,pen:0,sem:0,ann:0,can:0}; m.set(k,g); }
+    g.adm++; g.pen += r._pen; g.sem += r._sem; g.ann += r._ann; if(r._can) g.can++; });
+  return [...m.values()].sort((a,b) => b.adm - a.adm || a.name.localeCompare(b.name));
+}
+const top = (arr, f, n=10) => [...arr].sort((a,b) => f(b)-f(a)).slice(0,n);
+
+/* ---------- rendering helpers ---------- */
+function table(el, headers, rows, numFrom=1){
+  if(!rows.length){ $(el).innerHTML = '<div style="padding:12px;color:#78909C">No records for the selected filters.</div>'; return; }
+  $(el).innerHTML = '<table><thead><tr>' + headers.map((h,i)=>`<th class="${typeof rows[0][i]==='number'?'n':''}">${esc(h)}</th>`).join('') + '</tr></thead><tbody>' +
+    rows.map(r => '<tr>' + r.map((v,i)=>`<td class="${typeof v==='number'?'n':''}">${typeof v==='number'?fmt(v):esc(v)}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
+}
+function groupTable(el, rows, key, label, withCancel=true){
+  const g = group(rows, key);
+  const hd = [label, withCancel?'Total Admissions':'Number of Admissions','Fees Pending','Semester Fees Paid','Annual Fees Paid'];
+  if(withCancel) hd.push('Cancelled Admissions');
+  table(el, hd, g.map(x => { const r = [x.name,x.adm,x.pen,x.sem,x.ann]; if(withCancel) r.push(x.can); return r; }));
+  return g;
+}
+function chart(id, type, labels, datasets, opt={}){
+  const horiz = type === 'barh', t = horiz ? 'bar' : type, pie = t === 'doughnut';
+  const cfg = { type:t, data:{labels, datasets: datasets.map((d,i) => ({ ...d,
+      backgroundColor: pie ? PAL : (t==='line' ? 'rgba(245,124,0,.15)' : (d.color || PAL[i%PAL.length])),
+      borderColor: t==='line' ? '#F57C00' : undefined, fill: t==='line', tension:.25, pointRadius: t==='line'?2:undefined, borderRadius: t==='bar'?3:undefined }))},
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis: horiz?'y':'x',
+      plugins:{ legend:{ display: pie || datasets.length>1, position: pie?'right':'top', labels:{boxWidth:12,font:{size:11}} } },
+      scales: pie ? {} : { x:{ticks:{font:{size:10}}}, y:{beginAtZero:true,ticks:{font:{size:10}}} }, ...opt } };
+  if(charts[id]){ charts[id].data = cfg.data; charts[id].update(); }
+  else charts[id] = new Chart($(id), cfg);
+}
+
+/* ---------- main render ---------- */
+function render(){
+  const rows = filtered();
+  const tot = rows.length, can = rows.filter(r=>r._can).length;
+  const sum = k => rows.reduce((a,r)=>a+r[k],0);
+  $('kpis').innerHTML = [['Total Admissions',tot],['Total Fees Pending',sum('_pen')],['Total Semester Fees Paid',sum('_sem')],
+    ['Total Annual Fees Paid',sum('_ann')],['Cancelled Admissions',can],['Active Admissions',tot-can]]
+    .map(([l,v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${fmt(v)}</div></div>`).join('');
+
+  // date / month
+  const dm = new Map(), mm = new Map();
+  rows.forEach(r => { if(!r._d) return; const k = ymd(r._d); dm.set(k,(dm.get(k)||0)+1); const mk = k.slice(0,7); mm.set(mk,(mm.get(mk)||0)+1); });
+  const dk = [...dm.keys()].sort().slice(-60), mk = [...mm.keys()].sort();
+  chart('c-date','line',dk,[{label:'Admissions',data:dk.map(k=>dm.get(k))}]);
+  chart('c-month','bar',mk,[{label:'Admissions',data:mk.map(k=>mm.get(k))}]);
+
+  // process / campus / course / status
+  const gp = group(rows, C.proc), gc = group(rows, C.campus), go = group(rows, C.course), gs = group(rows, C.st);
+  chart('c-proc','doughnut',gp.map(x=>x.name),[{data:gp.map(x=>x.adm)}]);
+  chart('c-campus','barh',gc.slice(0,10).map(x=>x.name),[{label:'Admissions',data:gc.slice(0,10).map(x=>x.adm)}]);
+  chart('c-course','barh',go.slice(0,10).map(x=>x.name),[{label:'Admissions',data:go.slice(0,10).map(x=>x.adm)}]);
+  chart('c-status','doughnut',gs.map(x=>x.name),[{data:gs.map(x=>x.adm)}]);
+
+  // counsellor
+  const gcn = groupTable('t-counsellor', rows, C.cn, 'Counsellor Name');
+  [['c-cn-adm','adm','Admissions'],['c-cn-pen','pen','Fees Pending'],['c-cn-sem','sem','Semester Fees Paid'],['c-cn-ann','ann','Annual Fees Paid']].forEach(([id,k,l]) => {
+    const t = top(gcn, x=>x[k]); chart(id,'barh',t.map(x=>x.name),[{label:l,data:t.map(x=>x[k])}]); });
+
+  // manager
+  const gmg = groupTable('t-manager', rows, C.mg, 'Manager');
+  chart('c-mg-adm','bar',gmg.map(x=>x.name),[{label:'Admissions',data:gmg.map(x=>x.adm)}]);
+  chart('c-mg-fee','bar',gmg.map(x=>x.name),[{label:'Fees Pending',data:gmg.map(x=>x.pen),color:PAL[0]},{label:'Semester Fees Paid',data:gmg.map(x=>x.sem),color:PAL[3]},{label:'Annual Fees Paid',data:gmg.map(x=>x.ann),color:PAL[5]}]);
+
+  // team leader, campus, course, status tables
+  const gtl = groupTable('t-tl', rows, C.tl, 'Team Leader');
+  chart('c-tl','bar',gtl.map(x=>x.name),[{label:'Admissions',data:gtl.map(x=>x.adm)}]);
+  groupTable('t-campus', rows, C.campus, 'Campus');
+  groupTable('t-course', rows, C.course, 'Course Selected');
+  groupTable('t-status', rows, C.st, 'Current Status', false);
+
+  // fees
+  const fv = [sum('_pen'),sum('_sem'),sum('_ann')], fl = ['Fees Pending','Semester Fees Paid','Annual Fees Paid'];
+  chart('c-fee-col','bar',fl,[{label:'Amount',data:fv}]);
+  chart('c-fee-pie','doughnut',fl,[{data:fv}]);
+
+  // recent
+  const rec = rows.filter(r=>r._d).sort((a,b)=>b._d-a._d).slice(0,20);
+  table('t-recent', RECENT_COLS, rec.map(r => RECENT_COLS.map(c => (c===C.pen?r._pen:c===C.sem?r._sem:c===C.ann?r._ann:r[c]))), 9);
+  // cancelled
+  const cr = rows.filter(r=>r._can);
+  [['t-can-cn',C.cn,'Counsellor Name'],['t-can-mg',C.mg,'Manager'],['t-can-tl',C.tl,'Team Leader'],['t-can-cp',C.campus,'Campus'],['t-can-co',C.course,'Course Selected']]
+    .forEach(([el,key,lab]) => { const g = group(cr,key); table(el,[lab,'Cancelled Admissions'],g.map(x=>[x.name,x.adm])); });
+  // pending
+  const pr = rows.filter(r=>r._pen>0).sort((a,b)=>b._pen-a._pen);
+  table('t-pending', RECENT_COLS, pr.map(r => RECENT_COLS.map(c => (c===C.pen?r._pen:c===C.sem?r._sem:c===C.ann?r._ann:r[c]))), 9);
+}
+
+load();
+let timer = setInterval(load, REFRESH_SEC * 1000);
+</script>
+</body>
+</html>
