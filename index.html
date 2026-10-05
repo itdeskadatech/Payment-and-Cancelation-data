@@ -165,6 +165,14 @@ body.dark .spot{background:linear-gradient(135deg,#2b2118,#1e252b)}
 .ring circle{fill:none;stroke-width:9;stroke-linecap:round}
 .ring .bg{stroke:var(--g)}.ring .fg{transition:stroke-dasharray 1.4s cubic-bezier(.2,.8,.2,1)}
 .ring .rv{margin-top:-62px;margin-bottom:34px;font-size:17px;color:var(--txt);font-weight:800;position:relative}
+.pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px}
+.pc{background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:var(--sh);border-top:4px solid var(--o);cursor:pointer;transition:transform .2s,box-shadow .2s;opacity:0;animation:up .6s forwards;position:relative;overflow:hidden}
+.pc:hover{transform:translateY(-5px);box-shadow:0 12px 24px rgba(245,124,0,.25)}
+.pc.sel{outline:3px solid var(--o);background:var(--ol)}
+.pc .pn{font-weight:800;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:6px}
+.pc .pv{font-size:27px;font-weight:800;color:var(--o);margin:2px 0 6px}.pc .pv small{font-size:11px;color:var(--mut);font-weight:600}
+.pc .pr{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;font-size:11px;color:var(--mut)}.pc .pr b{color:var(--txt)}
+.pc .pbar{height:5px;background:var(--g);border-radius:4px;margin-top:8px;overflow:hidden}.pc .pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--o),var(--o2));border-radius:4px;width:0;transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
 footer{text-align:center;color:var(--mut);font-size:11.5px;padding:20px}
 @media(max-width:560px){.grid,.two{grid-template-columns:1fr}.box{height:250px}header h1{font-size:17px}}
 </style>
@@ -187,7 +195,7 @@ footer{text-align:center;color:var(--mut);font-size:11.5px;padding:20px}
 <div class="ticker"><b>● LATEST</b><div class="tk" id="tk"></div></div>
 <div class="tabs"><button class="on" data-v="dash">📊 Dashboard</button><button data-v="full">✅ Full Payment Done <span class="cnt" id="fpc">0</span></button></div>
 <nav id="nav">
-  <a href="#kpis">Overview</a><a href="#sec-trend">Trends</a><a href="#sec-board">Leaderboards</a><a href="#sec-adm">Admissions</a>
+  <a href="#kpis">Overview</a><a href="#sec-trend">Trends</a><a href="#sec-board">Leaderboards</a><a href="#sec-proc">Process</a><a href="#sec-adm">Admissions</a>
   <a href="#sec-cn">Counsellors</a><a href="#sec-mg">Managers</a><a href="#sec-tl">Team Leaders</a><a href="#sec-campus">Campus</a>
   <a href="#sec-course">Courses</a><a href="#sec-status">Status</a><a href="#sec-fees">Fees</a><a href="#sec-recent">Recent</a>
   <a href="#sec-can">Cancelled</a><a href="#sec-pen">Pending</a>
@@ -200,6 +208,8 @@ footer{text-align:center;color:var(--mut);font-size:11.5px;padding:20px}
   <div class="strip" id="strip"></div>
   <h2>Smart Insights <small>auto-generated from the filtered data</small></h2>
   <div class="ins-grid" id="ins"></div>
+  <h2 id="sec-proc">Process Cards <small>click a card to filter the whole dashboard by that Process</small></h2>
+  <div class="pcards" id="pcards"></div>
 
   <h2 id="sec-trend">Live Trends</h2>
   <div class="grid">
@@ -232,41 +242,54 @@ footer{text-align:center;color:var(--mut);font-size:11.5px;padding:20px}
     <div class="card reveal"><h3>Admissions by Course Selected <span class="sub" style="margin:0">top 10</span></h3><div class="box"><canvas id="c-course"></canvas></div></div>
     <div class="card reveal"><h3>Admissions by Current Status</h3><div class="box"><canvas id="c-status"></canvas></div></div>
   </div>
+  <h2>Process Analysis</h2>
+  <div class="tw" id="t-process"></div>
 
   <h2 id="sec-cn">Counsellor Analysis</h2>
   <div class="grid">
     <div class="card reveal"><h3>Admissions by Counsellor <span class="sub" style="margin:0">top 10</span></h3><div class="box"><canvas id="c-cn-adm"></canvas></div></div>
+    <div class="card reveal"><h3>Fees Paid Till Now (amount) by Counsellor <span class="sub" style="margin:0">top 10</span></h3><div class="box"><canvas id="c-cn-paid"></canvas></div></div>
     <div class="card reveal"><h3>Fees Pending (amount) by Counsellor <span class="sub" style="margin:0">top 10</span></h3><div class="box"><canvas id="c-cn-pen"></canvas></div></div>
     <div class="card reveal"><h3>Semester Fees Paid (Yes) by Counsellor <span class="sub" style="margin:0">top 10</span></h3><div class="box"><canvas id="c-cn-sem"></canvas></div></div>
     <div class="card reveal"><h3>Annual Fees Paid (Yes) by Counsellor <span class="sub" style="margin:0">top 10</span></h3><div class="box"><canvas id="c-cn-ann"></canvas></div></div>
+    <div class="card reveal"><h3>Counsellor × Process <span class="sub" style="margin:0">top 10 counsellors</span></h3><div class="box"><canvas id="c-cn-pr"></canvas></div></div>
   </div>
   <div style="margin-top:14px"><input class="srch" data-t="t-counsellor" placeholder="🔍 Search counsellor…"><div class="tw" id="t-counsellor"></div></div>
 
   <h2 id="sec-mg">Manager Analysis</h2>
   <div class="grid">
     <div class="card reveal"><h3>Admissions by Manager</h3><div class="box"><canvas id="c-mg-adm"></canvas></div></div>
-    <div class="card reveal"><h3>Fees Pending (amount) by Manager</h3><div class="box"><canvas id="c-mg-fee"></canvas></div></div>
+    <div class="card reveal"><h3>Fees Paid Till Now vs Fees Pending (amount) by Manager</h3><div class="box"><canvas id="c-mg-fee"></canvas></div></div>
     <div class="card reveal"><h3>Semester / Annual Fees Paid (Yes) by Manager</h3><div class="box"><canvas id="c-mg-yes"></canvas></div></div>
+    <div class="card reveal"><h3>Manager × Process</h3><div class="box"><canvas id="c-mg-pr"></canvas></div></div>
   </div>
   <div class="tw" style="margin-top:14px" id="t-manager"></div>
 
   <h2 id="sec-tl">Team Leader Analysis</h2>
-  <div class="grid"><div class="card reveal"><h3>Admissions by Team Leader</h3><div class="box"><canvas id="c-tl"></canvas></div></div></div>
+  <div class="grid"><div class="card reveal"><h3>Admissions by Team Leader</h3><div class="box"><canvas id="c-tl"></canvas></div></div>
+    <div class="card reveal"><h3>Team Leader × Process</h3><div class="box"><canvas id="c-tl-pr"></canvas></div></div></div>
   <div class="tw" style="margin-top:14px" id="t-tl"></div>
 
   <h2 id="sec-campus">Campus Analysis</h2>
+  <div class="grid" style="margin-bottom:14px"><div class="card reveal"><h3>Campus × Process <span class="sub" style="margin:0">top 10 campuses</span></h3><div class="box"><canvas id="c-cp-pr"></canvas></div></div></div>
   <input class="srch" data-t="t-campus" placeholder="🔍 Search campus…"><div class="tw" id="t-campus"></div>
 
   <h2 id="sec-course">Course Analysis</h2>
+  <div class="grid" style="margin-bottom:14px"><div class="card reveal"><h3>Course × Process <span class="sub" style="margin:0">top 10 courses</span></h3><div class="box"><canvas id="c-co-pr"></canvas></div></div></div>
   <input class="srch" data-t="t-course" placeholder="🔍 Search course…"><div class="tw" id="t-course"></div>
 
   <h2 id="sec-status">Status Analysis</h2>
+  <div class="grid" style="margin-bottom:14px"><div class="card reveal"><h3>Current Status × Process</h3><div class="box"><canvas id="c-st-pr"></canvas></div></div></div>
   <div class="tw" id="t-status"></div>
 
   <h2 id="sec-fees">Fees Analysis</h2>
   <div class="grid">
+    <div class="card reveal"><h3>Fees Paid Till Now vs Fees Pending <span class="sub" style="margin:0">total amount</span></h3><div class="box"><canvas id="c-fee-tot"></canvas></div></div>
+    <div class="card reveal"><h3>Fees Paid Till Now by Campus <span class="sub" style="margin:0">top 10</span></h3><div class="box"><canvas id="c-fee-paid-cp"></canvas></div></div>
     <div class="card reveal"><h3>Semester &amp; Annual Fees Paid <span class="sub" style="margin:0">count of Yes</span></h3><div class="box"><canvas id="c-fee-col"></canvas></div></div>
     <div class="card reveal"><h3>Fees Pending Amount by Campus <span class="sub" style="margin:0">top 10</span></h3><div class="box"><canvas id="c-fee-pie"></canvas></div></div>
+    <div class="card reveal"><h3>Semester / Annual Paid (Yes) by Process</h3><div class="box"><canvas id="c-fee-pr"></canvas></div></div>
+    <div class="card reveal"><h3>Fees Paid Till Now vs Fees Pending by Process</h3><div class="box"><canvas id="c-fee-pen-pr"></canvas></div></div>
   </div>
 
   <h2 id="sec-recent">Recent Admissions <small>latest 20</small></h2>
@@ -279,9 +302,11 @@ footer{text-align:center;color:var(--mut);font-size:11.5px;padding:20px}
     <div><div class="sub">By Team Leader</div><div class="tw" id="t-can-tl"></div></div>
     <div><div class="sub">By Campus</div><div class="tw" id="t-can-cp"></div></div>
     <div><div class="sub">By Course Selected</div><div class="tw" id="t-can-co"></div></div>
+    <div><div class="sub">By Process</div><div class="tw" id="t-can-pr"></div></div>
   </div>
 
   <h2 id="sec-pen">Pending Fees <small>Fees Pending amount &gt; 0</small></h2>
+  <div class="sub">Pending amount by Process</div><div class="tw" id="t-pen-pr" style="max-height:260px;margin-bottom:14px"></div>
   <div class="tw" id="t-pending"></div>
 </main>
 
@@ -291,10 +316,13 @@ footer{text-align:center;color:var(--mut);font-size:11.5px;padding:20px}
     <button class="btn" id="fp-dl">⬇ Download list (CSV)</button>
   </div>
   <div class="kpis" id="fp-kpis" style="margin-top:14px"></div>
+  <h2>Full Payments by Process</h2>
+  <div class="pcards" id="fp-cards"></div>
   <div class="grid" style="margin-top:14px">
     <div class="card"><h3>Full Payments by Counsellor <span class="sub" style="margin:0">top 10</span></h3><div class="box"><canvas id="c-fp-cn"></canvas></div></div>
     <div class="card"><h3>Full Payments by Manager</h3><div class="box"><canvas id="c-fp-mg"></canvas></div></div>
     <div class="card"><h3>Full Payments by Campus <span class="sub" style="margin:0">top 10</span></h3><div class="box"><canvas id="c-fp-cp"></canvas></div></div>
+    <div class="card"><h3>Full Payments by Process</h3><div class="box"><canvas id="c-fp-pr"></canvas></div></div>
     <div class="card"><h3>Full Payments by Admission Month</h3><div class="box"><canvas id="c-fp-mo"></canvas></div></div>
   </div>
   <h2>Full Payment List</h2>
@@ -304,6 +332,7 @@ footer{text-align:center;color:var(--mut);font-size:11.5px;padding:20px}
     <div><div class="sub">By Manager</div><div class="tw" id="t-fp-mg"></div></div>
     <div><div class="sub">By Team Leader</div><div class="tw" id="t-fp-tl"></div></div>
     <div><div class="sub">By Campus</div><div class="tw" id="t-fp-cp"></div></div>
+    <div><div class="sub">By Process</div><div class="tw" id="t-fp-pr"></div></div>
   </div>
 </main>
 <footer>Higher.Study Admissions Dashboard • live from Google Sheet • auto-refresh every 5 minutes</footer>
@@ -317,9 +346,9 @@ const REFRESH_SEC = 300;   // auto-refresh every 5 minutes
 /* ========================================== */
 const C = { proc:'Process', date:'Admission Done date', app:'Application Number', name:'Candidate Name', campus:'Campus',
   course:'Course Selected', cn:'Counsellor Name', mg:'Manager', tl:'Team Leader', st:'Current Status',
-  pen:'Fees Pending', sem:'Semester Fees Paid', ann:'Annual Fees Paid', rem:'Remark' };
-const ALLCOLS = [C.proc,C.date,C.app,C.name,C.campus,C.course,C.cn,C.mg,C.tl,C.st,C.pen,C.sem,C.ann,C.rem];
-const RECENT_COLS = [C.date,C.app,C.name,C.campus,C.course,C.cn,C.mg,C.tl,C.st,C.pen,C.sem,C.ann,C.rem];
+  paid:'Fees Paid Till Now', pen:'Fees Pending', sem:'Semester Fees Paid', ann:'Annual Fees Paid', rem:'Remark' };
+const ALLCOLS = [C.proc,C.date,C.app,C.name,C.campus,C.course,C.cn,C.mg,C.tl,C.st,C.paid,C.pen,C.sem,C.ann,C.rem];
+const RECENT_COLS = [C.date,C.proc,C.app,C.name,C.campus,C.course,C.cn,C.mg,C.tl,C.st,C.paid,C.pen,C.sem,C.ann,C.rem];
 const FILTERS = [['Process',C.proc],['Campus',C.campus],['Course Selected',C.course],['Counsellor Name',C.cn],['Manager',C.mg],['Team Leader',C.tl],['Current Status',C.st]];
 const PAL = ['#F57C00','#FFA726','#FFCC80','#90A4AE','#607D8B','#37474F','#FB8C00','#BDBDBD','#FFE0B2','#78909C'];
 const MON = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
@@ -363,7 +392,7 @@ function toast(t){ const e = $('toast'); e.textContent = t; e.classList.add('sho
 function ingest(text){
   const res = Papa.parse(text, {header:true, skipEmptyLines:true, transformHeader:h=>h.trim()});
   const rows = res.data.map(r => { const o = {}; Object.keys(r).forEach(k => o[k] = (r[k] ?? '').toString().trim()); return o; }).filter(r => r[C.name]);
-  rows.forEach(r => { r._d = parseDate(r[C.date]); r._pen = num(r[C.pen]); r._sem = isYes(r[C.sem]); r._ann = isYes(r[C.ann]); r._can = isCancelled(r); });
+  rows.forEach(r => { r._d = parseDate(r[C.date]); r._paid = num(r[C.paid]); r._pen = num(r[C.pen]); r._sem = isYes(r[C.sem]); r._ann = isYes(r[C.ann]); r._can = isCancelled(r); });
   const prev = lastCount; ALL = rows; buildFilters(); render();
   if(prev !== null && rows.length > prev) confetti(); toast('🎉 ' + (rows.length - prev) + ' new admission' + (rows.length-prev>1?'s':'') + ' just arrived!');
   lastCount = rows.length;
@@ -418,8 +447,8 @@ function downloadCsv(){
 /* ---------- aggregation ---------- */
 function group(rows, key){
   const m = new Map();
-  rows.forEach(r => { const k = r[key] || '(blank)'; let g = m.get(k); if(!g){ g = {name:k,adm:0,pen:0,sem:0,ann:0,can:0}; m.set(k,g); }
-    g.adm++; g.pen += r._pen; g.sem += r._sem; g.ann += r._ann; if(r._can) g.can++; });
+  rows.forEach(r => { const k = r[key] || '(blank)'; let g = m.get(k); if(!g){ g = {name:k,adm:0,paid:0,pen:0,sem:0,ann:0,can:0}; m.set(k,g); }
+    g.adm++; g.paid += r._paid; g.pen += r._pen; g.sem += r._sem; g.ann += r._ann; if(r._can) g.can++; });
   return [...m.values()].sort((a,b) => b.adm - a.adm || a.name.localeCompare(b.name));
 }
 const topN = (arr, f, n=10) => [...arr].sort((a,b) => f(b)-f(a)).slice(0,n);
@@ -447,9 +476,9 @@ document.querySelectorAll('.srch').forEach(i => i.oninput = () => { searchQ[i.da
 
 function groupTable(el, rows, key, label, withCancel=true){
   const g = group(rows, key);
-  const hd = [label, withCancel?'Total Admissions':'Number of Admissions','Fees Pending','Semester Fees Paid','Annual Fees Paid'];
+  const hd = [label, withCancel?'Total Admissions':'Number of Admissions','Fees Paid Till Now','Fees Pending','Semester Fees Paid','Annual Fees Paid'];
   if(withCancel) hd.push('Cancelled Admissions');
-  table(el, hd, g.map(x => { const r = [x.name,x.adm,x.pen,x.sem,x.ann]; if(withCancel) r.push(x.can); return r; }));
+  table(el, hd, g.map(x => { const r = [x.name,x.adm,x.paid,x.pen,x.sem,x.ann]; if(withCancel) r.push(x.can); return r; }));
   return g;
 }
 function chart(id, type, labels, datasets, opt={}){
@@ -500,7 +529,8 @@ function render(){
   const trend = lastM ? ((thisM-lastM)/lastM*100) : null;
   const K = [
     ['Total Admissions',tot,'🎓', trend===null?'':`<span class="${trend>=0?'up':'dn'}">${trend>=0?'▲':'▼'} ${Math.abs(trend).toFixed(0)}%</span> this month vs last`, 100, spark(last14)],
-    ['Total Fees Pending',sum('_pen'),'⏳','(amount)',null,''],
+    ['Total Fees Paid Till Now',sum('_paid'),'💵','(amount collected)',null,''],
+    ['Total Fees Pending',sum('_pen'),'⏳','(amount pending)',null,''],
     ['Total Semester Fees Paid',sum('_sem'),'✅','(count of “Yes”)', tot?sum('_sem')/tot*100:0,''],
     ['Total Annual Fees Paid',sum('_ann'),'💰','(count of “Yes”)', tot?sum('_ann')/tot*100:0,''],
     ['Full Payment Done',rows.filter(r=>r._ann).length,'🏆','Annual Fees = Yes', tot?rows.filter(r=>r._ann).length/tot*100:0,''],
@@ -542,7 +572,7 @@ function render(){
 
   // counsellor
   const gcn = groupTable('t-counsellor', rows, C.cn, 'Counsellor Name');
-  [['c-cn-adm','adm','Admissions'],['c-cn-pen','pen','Fees Pending'],['c-cn-sem','sem','Semester Fees Paid'],['c-cn-ann','ann','Annual Fees Paid']].forEach(([id,k,l]) => {
+  [['c-cn-adm','adm','Admissions'],['c-cn-paid','paid','Fees Paid Till Now'],['c-cn-pen','pen','Fees Pending'],['c-cn-sem','sem','Semester Fees Paid'],['c-cn-ann','ann','Annual Fees Paid']].forEach(([id,k,l]) => {
     const t = topN(gcn, x=>x[k]); chart(id,'barh',t.map(x=>x.name),[{label:l,data:t.map(x=>x[k])}]); });
   leaderboard('lb-cn', gcn); leaderboard('lb-cp', gc); leaderboard('lb-co', go);
   startSpotlight(gcn);
@@ -550,7 +580,7 @@ function render(){
   // manager
   const gmg = groupTable('t-manager', rows, C.mg, 'Manager');
   chart('c-mg-adm','bar',gmg.map(x=>x.name),[{label:'Admissions',data:gmg.map(x=>x.adm)}]);
-  chart('c-mg-fee','bar',gmg.map(x=>x.name),[{label:'Fees Pending',data:gmg.map(x=>x.pen),color:PAL[0]}]);
+  chart('c-mg-fee','bar',gmg.map(x=>x.name),[{label:'Fees Paid Till Now',data:gmg.map(x=>x.paid),color:'#66BB6A'},{label:'Fees Pending',data:gmg.map(x=>x.pen),color:PAL[0]}]);
   chart('c-mg-yes','bar',gmg.map(x=>x.name),[{label:'Semester Fees Paid',data:gmg.map(x=>x.sem),color:PAL[3]},{label:'Annual Fees Paid',data:gmg.map(x=>x.ann),color:PAL[5]}]);
 
   const gtl = groupTable('t-tl', rows, C.tl, 'Team Leader');
@@ -561,13 +591,16 @@ function render(){
 
   // fees
   chart('c-fee-col','bar',['Semester Fees Paid','Annual Fees Paid'],[{label:'Count of Yes',data:[sum('_sem'),sum('_ann')]}]);
+  chart('c-fee-tot','bar',['Fees Paid Till Now','Fees Pending'],[{label:'Amount',data:[sum('_paid'),sum('_pen')],color:'#66BB6A'}]);
+  const ppc = topN(gc, x=>x.paid);
+  chart('c-fee-paid-cp','barh',ppc.map(x=>x.name),[{label:'Fees Paid Till Now',data:ppc.map(x=>x.paid),color:'#66BB6A'}]);
   const pc = topN(gc, x=>x.pen);
   chart('c-fee-pie','barh',pc.map(x=>x.name),[{label:'Fees Pending',data:pc.map(x=>x.pen)}]);
 
   // recent (future-dated rows are ignored here so typos don't hide real latest records)
   const now = addD(today,1);
   const rec = dated.filter(r => r._d < now).sort((a,b)=>b._d-a._d).slice(0,20);
-  const rowOf = r => RECENT_COLS.map(c => c===C.pen ? r._pen : r[c]);
+  const rowOf = r => RECENT_COLS.map(c => c===C.paid ? r._paid : c===C.pen ? r._pen : r[c]);
   table('t-recent', RECENT_COLS, rec.map(rowOf), RECENT_COLS);
   $('tk').innerHTML = rec.slice(0,15).map(r => `<span><i>🎓</i><b>${esc(r[C.name])}</b> • ${esc(r[C.course])} • ${esc(r[C.campus])} • by ${esc(r[C.cn])} • ${esc(r[C.date])}</span>`).join('') || '<span>No recent admissions</span>';
 
@@ -580,9 +613,47 @@ function render(){
   table('t-pending', RECENT_COLS, pr.map(rowOf), RECENT_COLS);
 
   renderExtras(rows,{dm,mm,gcn,gc,go,tot,can,dated});
+  renderProcess(rows,{gcn,gmg,gtl,gc,go,gs,cr,pr});
   renderFull(rows);
   syncChips();
   observeReveal();
+}
+function stacked(id, rows, key, top, horiz){
+  const g = group(rows, key).slice(0, top), idx = new Map(g.map((x,i) => [x.name,i]));
+  const pg = group(rows, C.proc), keep = pg.slice(0,7).map(x=>x.name), hasOther = pg.length > 7;
+  const procs = hasOther ? [...keep,'Other'] : keep;
+  const data = procs.map(() => g.map(() => 0));
+  rows.forEach(r => { const i = idx.get(r[key] || '(blank)'); if(i === undefined) return;
+    let p = keep.indexOf(r[C.proc]); if(p < 0) p = procs.length - 1; data[p][i]++; });
+  const sc = a => ({stacked:true,beginAtZero:true,grid:a?{display:false}:{color:'rgba(128,150,160,.18)'},ticks:{font:{size:10}}});
+  chart(id, horiz?'barh':'bar', g.map(x=>x.name), procs.map((p,i) => ({label:p, data:data[i], color: p==='Other' ? '#CFD8DC' : PAL[i%PAL.length]})),
+    {scales: horiz ? {x:sc(false), y:sc(true)} : {x:sc(true), y:sc(false)}, plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:10,font:{size:10}}}}});
+}
+function procCards(el, g, label, onClick){
+  const mx = Math.max(...g.map(x=>x.adm),1), cur = $('f-0') ? $('f-0').value : '';
+  $(el).innerHTML = g.map((x,n) => `<div class="pc ${x.name===cur?'sel':''}" data-p="${esc(x.name)}" style="animation-delay:${n*45}ms" title="Click to filter by ${esc(x.name)}">
+    <div class="pn">🎯 ${esc(x.name)}</div><div class="pv">${fmt(x.adm)} <small>${label}</small></div>
+    <div class="pr"><span>Semester ✔ <b>${fmt(x.sem)}</b></span><span>Annual ✔ <b>${fmt(x.ann)}</b></span><span>Paid ₹ <b>${fmt(x.paid)}</b></span><span>Pending ₹ <b>${fmt(x.pen)}</b></span><span>Cancelled <b>${fmt(x.can)}</b></span></div>
+    <div class="pbar"><i data-w="${(x.adm/mx*100).toFixed(1)}"></i></div></div>`).join('') || '<div class="empty">No data</div>';
+  $(el).onclick = e => { const c = e.target.closest('.pc'); if(!c || !$('f-0')) return; const p = c.dataset.p; $('f-0').value = ($('f-0').value === p ? '' : p); render(); };
+  requestAnimationFrame(() => requestAnimationFrame(() => $(el).querySelectorAll('.pbar i').forEach(i => i.style.width = i.dataset.w + '%')));
+}
+function renderProcess(rows, x){
+  const gp = group(rows, C.proc);
+  procCards('pcards', gp, 'admissions');
+  groupTable('t-process', rows, C.proc, 'Process');
+  stacked('c-cn-pr', rows, C.cn, 10, true);
+  stacked('c-mg-pr', rows, C.mg, 12, false);
+  stacked('c-tl-pr', rows, C.tl, 12, false);
+  stacked('c-cp-pr', rows, C.campus, 10, true);
+  stacked('c-co-pr', rows, C.course, 10, true);
+  stacked('c-st-pr', rows, C.st, 8, false);
+  chart('c-fee-pr','bar',gp.map(g=>g.name),[{label:'Semester Fees Paid (Yes)',data:gp.map(g=>g.sem),color:PAL[3]},{label:'Annual Fees Paid (Yes)',data:gp.map(g=>g.ann),color:PAL[0]}]);
+  const gpen = [...gp].sort((a,b)=>(b.pen+b.paid)-(a.pen+a.paid)).slice(0,12);
+  chart('c-fee-pen-pr','barh',gpen.map(g=>g.name),[{label:'Fees Paid Till Now',data:gpen.map(g=>g.paid),color:'#66BB6A'},{label:'Fees Pending',data:gpen.map(g=>g.pen),color:PAL[0]}]);
+  const cr = rows.filter(r=>r._can), pr = rows.filter(r=>r._pen>0);
+  const gcp = group(cr, C.proc); table('t-can-pr',['Process','Cancelled Admissions'],gcp.map(g=>[g.name,g.adm]));
+  const gpp = group(pr, C.proc).sort((a,b)=>b.pen-a.pen); table('t-pen-pr',['Process','Students with Pending Fees','Fees Paid Till Now','Fees Pending (amount)'],gpp.map(g=>[g.name,g.adm,g.paid,g.pen]));
 }
 function renderExtras(rows,x){
   const {dm,mm,gcn,gc,go,tot,can,dated} = x;
@@ -648,11 +719,11 @@ function renderFull(rows){
   const fp = rows.filter(r => r._ann).sort((a,b) => (b._d||0) - (a._d||0));
   const both = fp.filter(r => r._sem).length, only = fp.length - both;
   $('fpc').textContent = fmt(fp.length);
-  const K = [['Full Payment Done',fp.length,'🏆','Annual Fees Paid = Yes'],['Semester + Annual both Yes',both,'✅✅','both fees paid'],['Annual Yes (semester not Yes)',only,'✅','annual fee paid'],['Pending amount of these students',fp.reduce((a,r)=>a+r._pen,0),'⏳','Fees Pending (amount)']];
+  const K = [['Full Payment Done',fp.length,'🏆','Annual Fees Paid = Yes'],['Semester + Annual both Yes',both,'✅✅','both fees paid'],['Annual Yes (semester not Yes)',only,'✅','annual fee paid'],['Fees Paid Till Now (these students)',fp.reduce((a,r)=>a+r._paid,0),'💵','amount collected'],['Fees Pending (these students)',fp.reduce((a,r)=>a+r._pen,0),'⏳','amount pending']];
   const kp = $('fp-kpis');
   if(!kp.children.length) kp.innerHTML = K.map(()=>`<div class="kpi"><span class="ic"></span><div class="l"></div><div class="v" data-v="0">0</div><div class="s"></div></div>`).join('');
   [...kp.children].forEach((el,i) => { el.querySelector('.ic').textContent = K[i][2]; el.querySelector('.l').textContent = K[i][0]; el.querySelector('.s').textContent = K[i][3]; countUp(el.querySelector('.v'), K[i][1]); });
-  const gcn = group(fp, C.cn), gmg = group(fp, C.mg), gtl = group(fp, C.tl), gcp = group(fp, C.campus);
+  const gcn = group(fp, C.cn), gmg = group(fp, C.mg), gtl = group(fp, C.tl), gcp = group(fp, C.campus), gpr = group(fp, C.proc);
   const t10 = a => a.slice(0,10);
   const vis = $('view-full').style.display !== 'none';
   if(vis){
@@ -661,12 +732,14 @@ function renderFull(rows){
   chart('c-fp-cp','barh',t10(gcp).map(x=>x.name),[{label:'Full Payments',data:t10(gcp).map(x=>x.adm)}]);
   const mm = new Map(); fp.forEach(r => { if(!r._d) return; const k = ymd(r._d).slice(0,7); mm.set(k,(mm.get(k)||0)+1); });
   const mk = [...mm.keys()].sort();
+  chart('c-fp-pr','doughnut',gpr.map(x=>x.name),[{data:gpr.map(x=>x.adm)}]);
   chart('c-fp-mo','bar',mk,[{label:'Full Payments',data:mk.map(k=>mm.get(k))}]);
   }
   const hd = [...RECENT_COLS,'Payment Type'];
-  table('t-full', hd, fp.map(r => [...RECENT_COLS.map(c => c===C.pen ? r._pen : r[c]), r._sem ? 'Semester + Annual' : 'Annual']), hd);
-  [['t-fp-cn',gcn,'Counsellor Name'],['t-fp-mg',gmg,'Manager'],['t-fp-tl',gtl,'Team Leader'],['t-fp-cp',gcp,'Campus']]
+  table('t-full', hd, fp.map(r => [...RECENT_COLS.map(c => c===C.paid ? r._paid : c===C.pen ? r._pen : r[c]), r._sem ? 'Semester + Annual' : 'Annual']), hd);
+  [['t-fp-cn',gcn,'Counsellor Name'],['t-fp-mg',gmg,'Manager'],['t-fp-tl',gtl,'Team Leader'],['t-fp-cp',gcp,'Campus'],['t-fp-pr',gpr,'Process']]
     .forEach(([el,g,lab]) => table(el,[lab,'Full Payments'],g.map(x=>[x.name,x.adm])));
+  procCards('fp-cards', gpr.map(g => ({...g, adm:g.adm})), 'full payments');
   window.__fp = fp;
 }
 $('fp-dl').onclick = () => { const fp = window.__fp || []; const csv = Papa.unparse({fields:ALLCOLS, data:fp.map(r => ALLCOLS.map(c => r[c]))});
